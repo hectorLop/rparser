@@ -1,6 +1,6 @@
 use csv;
 
-use std::{error::Error};
+use std::{error::Error, str::FromStr, ptr::read};
 
 #[derive(Debug)]
 enum DataTypes {
@@ -33,23 +33,11 @@ impl<T> Col<T> {
     }
 }
 
-
-pub fn match_integer(value: &str) -> bool {
-    match value.parse::<i64>() {
-        Ok(_n) => true,
-        Err(_e) => false,
-    }
-}
-
-pub fn match_float(value: &str) -> bool {
-    match value.parse::<f64>() {
-        Ok(_n) => true,
-        Err(_e) => false,
-    }
-}
-
-pub fn match_string(value: &str) -> bool {
-    match value.parse::<String>() {
+pub fn match_type<T>(value: &str) -> bool
+where
+    T: FromStr 
+{
+    match value.parse::<T>() {
         Ok(_n) => true,
         Err(_e) => false,
     }
@@ -62,23 +50,39 @@ pub fn read_from_file(path: &str) -> Result<(), Box<dyn Error>> {
 
     let headers: Vec<&str> = reader.headers().unwrap().deserialize(None)?;
 
-    let mut data_types: Vec<DataTypes> = Vec::new();
+    let mut data_types: Vec<&DataTypes> = Vec::new();
     let mut content: Vec<Column> = Vec::new();
     
-    let first_row = reader.into_records().skip(1).next().unwrap().unwrap();
+    let first_row = reader.records().skip(1).next().unwrap()?;
 
     for value in first_row.into_iter() {
-        if match_integer(value) {
+        if match_type::<i64>(value) {
             content.push(Column::Integer(Col::new(Vec::new())));
-            data_types.push(DataTypes::Integer);
-        } else if match_float(value) {
+            data_types.push(&DataTypes::Integer);
+        } else if match_type::<f64>(value) {
             content.push(Column::Float(Col::new(Vec::new())));
-            data_types.push(DataTypes::Float);
+            data_types.push(&DataTypes::Float);
         } else {
             content.push(Column::String(Col::new(Vec::new())));
-            data_types.push(DataTypes::String);
+            data_types.push(&DataTypes::String);
         }
     }
+
+    // for record in reader.records() {
+    //     match record {
+    //         Ok(row) => {
+    //             for (i, field) in row.into_iter().enumerate() {
+    //                 match &content[i] {
+    //                     Column::Integer(columnss) => column.data.push(field.parse::<i64>()?),
+    //                     Column::Float(column) => column.data.push(field.parse::<f64>()?),
+    //                     Column::String(column) => column.data.push(field.parse::<String>()?),
+    //                 }
+    //             }
+    //         },
+    //         Err(_e) => (),
+    //     };
+
+    // }
 
     // println!("{:?}", headers);
     println!("Content: {:?}", content);
