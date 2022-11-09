@@ -1,6 +1,6 @@
 use csv;
 
-use std::{error::Error, str::FromStr, ptr::read};
+use std::{error::Error, str::FromStr};
 
 #[derive(Debug)]
 enum DataTypes {
@@ -53,7 +53,7 @@ pub fn read_from_file(path: &str) -> Result<(), Box<dyn Error>> {
     let mut data_types: Vec<&DataTypes> = Vec::new();
     let mut content: Vec<Column> = Vec::new();
     
-    let first_row = reader.records().skip(1).next().unwrap()?;
+    let first_row = &reader.records().next().unwrap()?;
 
     for value in first_row.into_iter() {
         if match_type::<i64>(value) {
@@ -68,32 +68,37 @@ pub fn read_from_file(path: &str) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // for record in reader.records() {
-    //     match record {
-    //         Ok(row) => {
-    //             for (i, field) in row.into_iter().enumerate() {
-    //                 match &content[i] {
-    //                     Column::Integer(columnss) => column.data.push(field.parse::<i64>()?),
-    //                     Column::Float(column) => column.data.push(field.parse::<f64>()?),
-    //                     Column::String(column) => column.data.push(field.parse::<String>()?),
-    //                 }
-    //             }
-    //         },
-    //         Err(_e) => (),
-    //     };
+    for record in reader.records() {
+        match &record {
+            Ok(row) => {
+                for (i, field) in row.into_iter().enumerate() {
+                    match &mut content[i] {
+                        Column::Integer(column) => column.data.push(field.parse::<i64>()?),
+                        Column::Float(column) => column.data.push(field.parse::<f64>()?),
+                        Column::String(column) => column.data.push(field.parse::<String>()?),
+                    }
+                }
+            },
+            Err(_e) => (),
+        };
+    }
 
-    // }
+    // let file_content: FileContent = FileContent {
+    //     headers: headers,
+    //     data_types: data_types,
+    //     content: content,
+    // };
 
     // println!("{:?}", headers);
-    println!("Content: {:?}", content);
+    println!("The CSV contains: {:} columns", content.len());
+    for column in content.into_iter() {
+        match &column {
+            Column::Integer(column) => println!("Integer column, with {} elements", column.data.len()),
+            Column::Float(column) => println!("Float column, with {} elements", column.data.len()),
+            Column::String(column) => println!("String column, with {} elements", column.data.len()),
+        }
+    }
     println!("Data types: {:?}", data_types);
-
-    // for row in reader.records().skip(1) {
-    //     for field in row.unwrap().deserialize(None) {
-            
-    //     }
-    // }
-    // println!("There are {} rows", count);
 
     Ok(())
 }
