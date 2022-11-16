@@ -1,4 +1,6 @@
 use csv;
+use pyo3::prelude::*;
+use pyo3::exceptions::PyValueError;
 
 use std::{error::Error, str::FromStr};
 
@@ -9,6 +11,7 @@ pub enum DataTypes {
     Integer
 }
 
+#[pyclass]
 pub struct FileContent  {
     pub headers: Vec<String>,
     pub data_types: Vec<DataTypes>,
@@ -43,11 +46,26 @@ where
     }
 }
 
-pub fn read_from_file(path: &str) -> Result<FileContent, Box<dyn Error>> {
+ pub struct CSVError(csv::Error);
+
+impl From<CSVError> for PyErr {
+    fn from(error: CSVError) -> Self {
+        PyValueError::new_err("CSV Error")
+    }
+}
+
+impl From<csv::Error> for CSVError {
+    fn from(error: csv::Error) -> Self {
+        Self(error)
+    }
+}
+
+#[pyfunction]
+pub fn read_from_file(path: &str) -> Result<FileContent, CSVError> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
-        .from_path(path)?;
-
+        .from_path(path)?; 
+    
     let mut file_content: FileContent = FileContent {
         headers: Vec::new(),
         data_types: Vec::new(),
@@ -79,9 +97,9 @@ pub fn read_from_file(path: &str) -> Result<FileContent, Box<dyn Error>> {
             Ok(row) => {
                 for (i, field) in row.into_iter().enumerate() {
                     match &mut file_content.content[i] {
-                        Column::Integer(column) => column.data.push(field.parse::<i64>()?),
-                        Column::Float(column) => column.data.push(field.parse::<f64>()?),
-                        Column::String(column) => column.data.push(field.parse::<String>()?),
+                        Column::Integer(column) => column.data.push(field.parse::<i64>().unwrap()),
+                        Column::Float(column) => column.data.push(field.parse::<f64>().unwrap()),
+                        Column::String(column) => column.data.push(field.parse::<String>().unwrap()),
                     }
                 }
             },
@@ -92,3 +110,9 @@ pub fn read_from_file(path: &str) -> Result<FileContent, Box<dyn Error>> {
     Ok(file_content)
 }
 
+
+#[pymodule]
+fn rparser(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(read_from_file, m)?)?;
+    Ok(())
+}
